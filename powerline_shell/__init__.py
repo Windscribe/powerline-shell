@@ -190,53 +190,56 @@ class CustomImporter(object):
 
 
 def main():
-    arg_parser = argparse.ArgumentParser()
-    arg_parser.add_argument('--generate-config', action='store_true',
-                            help='Generate the default config and print it to stdout')
-    arg_parser.add_argument('--shell', action='store', default='bash',
-                            help='Set this to your shell type',
-                            choices=['bash', 'tcsh', 'zsh', 'bare'])
-    arg_parser.add_argument('prev_error', nargs='?', type=int, default=0,
-                            help='Error code returned by the last command')
-    args = arg_parser.parse_args()
+    try:
+        arg_parser = argparse.ArgumentParser()
+        arg_parser.add_argument('--generate-config', action='store_true',
+                                help='Generate the default config and print it to stdout')
+        arg_parser.add_argument('--shell', action='store', default='bash',
+                                help='Set this to your shell type',
+                                choices=['bash', 'tcsh', 'zsh', 'bare'])
+        arg_parser.add_argument('prev_error', nargs='?', type=int, default=0,
+                                help='Error code returned by the last command')
+        args = arg_parser.parse_args()
 
-    if args.generate_config:
-        print(json.dumps(DEFAULT_CONFIG, indent=2))
-        return 0
+        if args.generate_config:
+            print(json.dumps(DEFAULT_CONFIG, indent=2))
+            return 0
 
-    config_path = find_config()
-    if config_path:
-        with open(config_path) as f:
-            try:
-                config = json.loads(f.read())
-            except Exception as e:
-                warn("Config file ({0}) could not be decoded! Error: {1}"
-                     .format(config_path, e))
-                config = DEFAULT_CONFIG
-    else:
-        config = DEFAULT_CONFIG
+        config_path = find_config()
+        if config_path:
+            with open(config_path) as f:
+                try:
+                    config = json.loads(f.read())
+                except Exception as e:
+                    warn("Config file ({0}) could not be decoded! Error: {1}"
+                         .format(config_path, e))
+                    config = DEFAULT_CONFIG
+        else:
+            config = DEFAULT_CONFIG
 
-    custom_importer = CustomImporter()
-    theme_mod = custom_importer.import_(
-        "powerline_shell.themes.",
-        config.get("theme", "default"),
-        "Theme")
-    theme = getattr(theme_mod, "Color")
+        custom_importer = CustomImporter()
+        theme_mod = custom_importer.import_(
+            "powerline_shell.themes.",
+            config.get("theme", "default"),
+            "Theme")
+        theme = getattr(theme_mod, "Color")
 
-    powerline = Powerline(args, config, theme)
-    segments = []
-    for seg_conf in config["segments"]:
-        if not isinstance(seg_conf, dict):
-            seg_conf = {"type": seg_conf}
-        seg_name = seg_conf["type"]
-        seg_mod = custom_importer.import_(
-            "powerline_shell.segments.",
-            seg_name,
-            "Segment")
-        segment = getattr(seg_mod, "Segment")(powerline, seg_conf)
-        segment.start()
-        segments.append(segment)
-    for segment in segments:
-        segment.add_to_powerline()
-    sys.stdout.write(powerline.draw())
+        powerline = Powerline(args, config, theme)
+        segments = []
+        for seg_conf in config["segments"]:
+            if not isinstance(seg_conf, dict):
+                seg_conf = {"type": seg_conf}
+            seg_name = seg_conf["type"]
+            seg_mod = custom_importer.import_(
+                "powerline_shell.segments.",
+                seg_name,
+                "Segment")
+            segment = getattr(seg_mod, "Segment")(powerline, seg_conf)
+            segment.start()
+            segments.append(segment)
+        for segment in segments:
+            segment.add_to_powerline()
+        sys.stdout.write(powerline.draw())
+    except KeyboardInterrupt:
+        pass
     return 0
